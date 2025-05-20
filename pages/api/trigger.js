@@ -1,4 +1,4 @@
-// ✅ 加强版 trigger.js：内建错误捕捉 + 关键词支持 + 日志输出
+// ✅ 修正版 trigger.js：将 video ID 转为帖文 ID（post ID）
 
 const PAGE_ID = '101411206173416';
 const ASSISTANT_ID = '100001418128376';
@@ -10,7 +10,6 @@ const USER_IDS = [PAGE_ID, ASSISTANT_ID];
 
 export default async function handler(req, res) {
   try {
-    // 获取直播列表
     const videoRes = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/live_videos?fields=id,creation_time,status&access_token=${ACCESS_TOKEN}`);
     const videoData = await videoRes.json();
 
@@ -26,7 +25,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No live video currently streaming.' });
     }
 
-    const postId = liveVideo.id;
+    const videoId = liveVideo.id;
+
+    // 获取视频的帖文 ID
+    const videoMetaRes = await fetch(`https://graph.facebook.com/v19.0/${videoId}?fields=post&access_token=${ACCESS_TOKEN}`);
+    const videoMeta = await videoMetaRes.json();
+    const postId = videoMeta?.post || videoId; // fallback: if no post field
 
     // 获取留言
     const commentsRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?fields=message,from,id&order=reverse_chronological&access_token=${ACCESS_TOKEN}`);
@@ -46,7 +50,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No matching comment found.' });
     }
 
-    // 调用 Webhook
     try {
       const webhookRes = await fetch(WEBHOOK_URL, {
         method: 'POST',
@@ -78,4 +81,4 @@ export default async function handler(req, res) {
     console.error('FATAL ERROR:', error);
     return res.status(500).json({ error: 'Internal Server Error', detail: error.message });
   }
-} 
+}
