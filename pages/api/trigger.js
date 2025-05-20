@@ -6,7 +6,7 @@ const WEBHOOK_URL = 'https://hook.us2.make.com/jed2lptdmv1wjgvn3wdk6tuwxljguf45'
 
 export default async function handler(req, res) {
   try {
-    // 👉 仅测试指定贴文的留言
+    // 👉 测试用：抓固定影片贴文留言
     const commentsRes = await fetch(`https://graph.facebook.com/v19.0/${TEST_POST_ID}/comments?access_token=${ACCESS_TOKEN}`);
     const commentsData = await commentsRes.json();
 
@@ -31,10 +31,9 @@ export default async function handler(req, res) {
           body: JSON.stringify({ post_id: TEST_POST_ID })
         });
 
-        const webhookJson = await webhookRes.json();
-
+        // ✅ 不尝试解析 webhook 返回值，只检查状态
         if (!webhookRes.ok) {
-          throw new Error(`Webhook error: ${JSON.stringify(webhookJson)}`);
+          throw new Error(`Webhook failed. Status: ${webhookRes.status}`);
         }
 
         return res.status(200).json({
