@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Trigger Test</title></head>
+  <body>
+    <button onclick="trigger()">点击测试触发</button>
+    <script>
+      async function trigger() {
+        const res = await fetch('/api/trigger');
+        const data = await res.json();
+        alert(JSON.stringify(data));
+      }
+    </script>
+  </body>
+</html>

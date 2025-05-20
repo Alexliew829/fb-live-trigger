@@ -1,0 +1,11 @@
+# Cron 设置说明（使用 EasyCron）
+
+1. 注册 EasyCron：https://www.easycron.com/
+2. 创建任务
+   - 方法：访问网址
+   - URL：https://fb-live-trigger.vercel.app/api/trigger
+   - 触发频率：每 1 分钟（建议设置为 */1 * * * *）
+3. 保存即可自动触发监听留言
+
+触发成功会调用：
+https://hook.us2.make.com/jed2lptdmv1wjgvn3wdk6tuwxljguf45
