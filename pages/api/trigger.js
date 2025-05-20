@@ -7,10 +7,16 @@ const WEBHOOK_URL = 'https://hook.us2.make.com/jed2lptdmv1wjgvn3wdk6tuwxljguf45'
 
 export default async function handler(req, res) {
   try {
-    // 获取主页最近的直播视频贴文
+    // 获取直播视频列表
     const videoRes = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/live_videos?access_token=${ACCESS_TOKEN}`);
     const videoData = await videoRes.json();
-    const livePost = videoData.data?.find(v => v.status === 'LIVE');
+
+    if (!videoData?.data || videoData.data.length === 0) {
+      return res.status(200).json({ message: 'No live video found.' });
+    }
+
+    // 找到正在直播的视频
+    const livePost = videoData.data.find(v => v.status === 'LIVE');
 
     if (!livePost) {
       return res.status(200).json({ message: 'No live video found.' });
@@ -22,9 +28,14 @@ export default async function handler(req, res) {
     const commentsRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?access_token=${ACCESS_TOKEN}`);
     const commentsData = await commentsRes.json();
 
-    const triggerComment = commentsData.data?.find(comment => {
-      const message = comment.message?.toLowerCase();
-      const fromId = comment.from?.id;
+    if (!commentsData?.data || commentsData.data.length === 0) {
+      return res.status(200).json({ message: 'No comments yet.' });
+    }
+
+    // 查找符合条件的留言
+    const triggerComment = commentsData.data.find(comment => {
+      const message = comment?.message?.toLowerCase?.();
+      const fromId = comment?.from?.id;
       return (
         (fromId === PAGE_ID || fromId === ASSISTANT_ID) &&
         (message === '关' || message === 'close')
@@ -32,17 +43,25 @@ export default async function handler(req, res) {
     });
 
     if (triggerComment) {
+      // 命中关键词，触发 Webhook
       await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ post_id: postId })
       });
-      return res.status(200).json({ message: 'Triggered countdown.', post_id: postId });
+
+      return res.status(200).json({
+        message: 'Triggered countdown.',
+        post_id: postId,
+        trigger_by: triggerComment.from?.id,
+        comment: triggerComment.message
+      });
     }
 
     return res.status(200).json({ message: 'No matching comment found.' });
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('Trigger.js Error:', error.message);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 }
