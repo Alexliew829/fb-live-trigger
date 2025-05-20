@@ -5,7 +5,6 @@ const WEBHOOK_URL = 'https://hook.us2.make.com/jed2lptdmv1wjgvn3wdk6tuwxljguf45'
 
 export default async function handler(req, res) {
   try {
-    // 获取直播视频列表
     const videoRes = await fetch(`https://graph.facebook.com/v19.0/${PAGE_ID}/live_videos?access_token=${ACCESS_TOKEN}`);
     const videoData = await videoRes.json();
 
@@ -13,16 +12,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No live video found.' });
     }
 
-    // 找到正在直播的视频
     const livePost = videoData.data.find(v => v.status === 'LIVE');
-
     if (!livePost) {
       return res.status(200).json({ message: 'No live video found.' });
     }
 
     const postId = livePost.id;
 
-    // 获取留言
     const commentsRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?access_token=${ACCESS_TOKEN}`);
     const commentsData = await commentsRes.json();
 
@@ -30,7 +26,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No comments yet.' });
     }
 
-    // 查找符合条件的留言
     const triggerComment = commentsData.data.find(comment => {
       const message = comment?.message?.toLowerCase?.();
       const fromId = comment?.from?.id;
@@ -41,25 +36,39 @@ export default async function handler(req, res) {
     });
 
     if (triggerComment) {
-      // 命中关键词，触发 Webhook
-      await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ post_id: postId })
-      });
+      try {
+        const webhookRes = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: postId })
+        });
 
-      return res.status(200).json({
-        message: 'Triggered countdown.',
-        post_id: postId,
-        trigger_by: triggerComment.from?.id,
-        comment: triggerComment.message
-      });
+        const webhookJson = await webhookRes.json();
+
+        if (!webhookRes.ok) {
+          throw new Error(`Webhook error: ${JSON.stringify(webhookJson)}`);
+        }
+
+        return res.status(200).json({
+          message: 'Triggered countdown.',
+          post_id: postId,
+          comment: triggerComment.message
+        });
+
+      } catch (webhookError) {
+        console.error('❌ Failed to trigger webhook:', webhookError.message);
+        return res.status(200).json({
+          message: 'Live comment matched, but failed to call webhook.',
+          error: webhookError.message,
+          post_id: postId
+        });
+      }
     }
 
     return res.status(200).json({ message: 'No matching comment found.' });
 
   } catch (error) {
-    console.error('Trigger.js Error:', error.message);
+    console.error('Trigger.js Fatal Error:', error.message);
     return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 }
